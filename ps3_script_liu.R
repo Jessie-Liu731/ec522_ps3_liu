@@ -107,7 +107,7 @@ retail_ts |>
 # The NSA series has got an annual pattern where there's a spike and drop towards the end of each year. The SA series does not have this pattern.
 # The two series still follow the same path over the long run yet the ups and downs become much smaller after seasonal adjustment.
 
-#2.7c lplot the Canadian gas production series can_gas
+#2.7c plot the Canadian gas production series can_gas
 can_gas |>
   autoplot(Volume) +
   labs(
@@ -127,6 +127,98 @@ retail_ts |>
   theme_minimal() +
   facet_wrap (~series_id)
 ### the use of facet_wrap makes the comparison more visible without the line NSA series covering up the SA ones. 
+
+
+# part 3 - data transformations (logs and growth rates)
+
+#3.1 log transformation
+### The size of seasonal swings in can_gas change over time. The swings get larger as the series grow till 1990 and then the swings get smaller as the series shrink after 2000. 
+
+#3.1b 
+can_gas <- can_gas |>
+  mutate(log_volume = log(Volume))
+can_gas |>
+  autoplot(log_volume) +
+  labs(
+    title = "Logged Monthly Natural Gas Production in Canada",
+    x = NULL, y = "Billions of Cubic Meters (Logged)", color = NULL
+  ) +
+  theme_minimal()
+
+###The trend totally changes in the logged series. It grows rapidly at the beginning and then it slows down and becomes more stable between 1975 and 1985 and after 2000. 
+###The sizes of seasonal swings also change in different ways over time in the logged series. The swings are more stable at the first and last third of the series with the size in the first third is much more bigger. The size of swings in the middle third of the series becomes generally the largest over time.  
+###I think the logged series is more useful for forecasting because it reflects some genuine changes and fluctuations in the data over time, in reference to the original volume at the time. This may make it easier as well as more informative to identify and model the underlying patterns.
+
+#3.1c
+retail_ts_nsa <- retail_ts |>
+  filter(series_id == "RSAFS") |>
+  mutate(log_sales = log(sales)) 
+
+retail_ts_nsa |>
+  autoplot(sales) +
+  labs(
+    title = "U.S. Retail and Food Services Sales",
+    x = NULL, y = "Millions of dollars", color = NULL
+  ) +
+  theme_minimal()
+
+retail_ts_nsa |>
+  autoplot(log_sales) +
+  labs(
+    title = "Logged U.S. Retail and Food Services Sales",
+    x = NULL, y = "Millions of dollars (Logged)", color = NULL
+  ) +
+  theme_minimal()
+
+###I think the case for logging this series is stronger than it was for can_gas. As the original level trend up and the logged trend becomes more linear in the logged series, it becomes easier to model and forecast. The size of seasonal swings also becomes more stable over time in the logged series. 
+
+#3.2 growth rates
+#3.2a compute growth rates for can_gas in two different ways
+can_gas <- can_gas |>
+  mutate(
+    growth_direct = 100 * difference(Volume) / lag(Volume),
+    growth_logdiff = 100 * difference(log_volume)
+  )
+
+can_gas |>
+  autoplot(growth_direct) +
+  labs(
+    title = "Month-over-Month Percentage Growth Rate of Natural Gas Production in Canada",
+    x = NULL, y = "Percentage", color = NULL
+  ) +
+  theme_minimal()
+
+can_gas <- can_gas |>
+  mutate(growth_gap = abs(growth_direct - growth_logdiff))
+can_gas |>
+  autoplot(growth_gap) +
+  labs(
+    title = "Absolute Difference Between the Two Growth Rate Calculations",
+    x = NULL, y = "Percentage Points", color = NULL
+  ) +
+  theme_minimal()
+
+###The log difference approximation is doing a pretty good job of capturing the growth rate of the series. The absolute difference between the two methods is relatively small considering the original scale of growth rates, indicating that the log difference is a good approximation of the actual growth rate.
+
+#3.3 seasonally adjusted vs. non seasonally adjusted growth rates
+
+retail_ts <- retail_ts |>
+  group_by_key() |>
+  mutate(growth_mom = 100 * difference(log(sales))) |>
+  ungroup()
+
+retail_ts |>
+  autoplot(growth_mom) +
+  labs(
+    title = "Month-over-Month Growth: SA vs. NSA Retail Sales",
+    x = NULL, y = "Growth rate (%)", color = NULL
+  ) +
+  theme_minimal()
+
+###The NSA series is noisier than the SA series. The SA series is much smoother and more stable over time, while the NSA series has more fluctuations and spikes with the size of swings larger as well. 
+###This is because the SA series has been adjusted to remove the seasonal effects, while the NSA series still contains these effects. The SA series is more useful for analyzing the underlying trend and growth of retail sales, while the NSA series may be more useful for understanding the seasonal patterns and fluctuations in retail sales.
+
+
 
 
 
