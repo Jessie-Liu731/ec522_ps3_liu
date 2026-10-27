@@ -3,6 +3,7 @@
 #2.2 read the .csv file and inspect the data column
 library(tidyverse)
 library(fpp3)
+library(forecast)
 
 retail_raw <- read_csv("data/retail_sales_raw.csv")
 
@@ -103,7 +104,7 @@ retail_ts |>
   ) +
   theme_minimal()
 
-# The seasonal adjustment provides a line smoother than the lien for the NSA series. Although the upward trend is similar, the swings become much more smaller after adjusted.
+# The seasonal adjustment provides a line smoother than the line for the NSA series. Although the upward trend is similar, the swings become much more smaller after adjusted.
 # The NSA series has got an annual pattern where there's a spike and drop towards the end of each year. The SA series does not have this pattern.
 # The two series still follow the same path over the long run yet the ups and downs become much smaller after seasonal adjustment.
 
@@ -147,7 +148,7 @@ can_gas |>
 
 ###The trend totally changes in the logged series. It grows rapidly at the beginning and then it slows down and becomes more stable between 1975 and 1985 and after 2000. 
 ###The sizes of seasonal swings also change in different ways over time in the logged series. The swings are more stable at the first and last third of the series with the size in the first third is much more bigger. The size of swings in the middle third of the series becomes generally the largest over time.  
-###I think the logged series is more useful for forecasting because it reflects some genuine changes and fluctuations in the data over time, in reference to the original volume at the time. This may make it easier as well as more informative to identify and model the underlying patterns.
+###I think the logged series is less useful here for this series because the size of the fluctuations does not really grow wit hthe level of the series but changes instead. That means that the series grows at changing percentage rate, making it more difficult to forecast in the logged terms. 
 
 #3.1c
 retail_ts_nsa <- retail_ts |>
@@ -216,8 +217,126 @@ retail_ts |>
   theme_minimal()
 
 ###The NSA series is noisier than the SA series. The SA series is much smoother and more stable over time, while the NSA series has more fluctuations and spikes with the size of swings larger as well. 
-###This is because the SA series has been adjusted to remove the seasonal effects, while the NSA series still contains these effects. The SA series is more useful for analyzing the underlying trend and growth of retail sales, while the NSA series may be more useful for understanding the seasonal patterns and fluctuations in retail sales.
+###This is because the SA series has been adjusted to remove the seasonal effects in the series, while the NSA series still contains these effects. The SA series is more useful for analyzing the underlying trend and growth of retail sales, while the NSA series may be more useful for understanding the seasonal patterns and fluctuations in retail sales.
 
+#part 4 - seeing, decomposing, and modeling seasonality
+
+#4.1 seasonal plots
+#4.1a 
+retail_ts |>
+  filter(series_id == "RSAFSNA") |>
+  gg_season(sales) +
+  labs(
+    title = "Seasonal Pattern in NSA Retail Sales",
+    y = "Millions of dollars"
+  ) +
+  theme_minimal()
+
+#4.1b 
+retail_ts |>
+  filter(series_id == "RSAFS") |>
+  gg_season(sales) +
+  labs(
+    title = "Seasonal Pattern in SA Retail Sales",
+    y = "Millions of dollars"
+  ) +
+  theme_minimal()
+
+#Compared to the NSA series, the SA series has a much more stable seasonal pattern over time. Compared to the lines tracing a siilar shape year after year in the NSA plot, the lines of different years get to trace different shapes in the SA series. 
+
+#4.1c seasonal plot for can_gas
+can_gas |>
+  gg_season(log_volume) +
+  labs(
+    title = "Seasonal Pattern in Logged Monthly Natural Gas Production in Canada",
+    y = "Billions of Cubic Meters (Logged)"
+  ) +
+  theme_minimal()
+
+#The seasonal pattern shows that the production is highest in the winter months and lowest in the summer months. The seasonal pattern is more obvious in the earlier years of the series, with a larger difference between the winter and summer production levels. In the later years of the series, the seasonal pattern becomes less pronounced, with a smaller difference between the winter and summer production levels.
+#The pattern matches my intuition about natural gas production in Canada as natural gas is usually used for generating electricity for both heating and cooling the buildings, with heating takes more than cooling. 
+
+#4.2 a subseries plot
+can_gas |>
+  gg_subseries(log_volume) +
+  labs(
+    title = "Subseries Plot: Canadian Gas Production",
+    y = "log(Volume)"
+  )
+
+#4.3 seasonally adjusting with X-13ARIMA-SEATS
+
+retail_nsa_x13 <- retail_ts |>
+  filter(series_id == "RSAFSNA") |>
+  model(x13 = X_13ARIMA_SEATS(sales)) |>
+  components()
+
+retail_nsa_x13 |> autoplot()
+
+#December seems to have the highest seasonal factor at roughly 10%-20% above trend. 
+#The size of the seasonal swings does appear to change over time. It is getting smaller.
+
+#4.3b compare two SA series to see the percent difference between them
+sa_compare <- retail_nsa_x13 |>
+  as_tibble() |>
+  select(Month, mine = season_adjust) |>
+  left_join(
+    retail_ts |>
+      filter(series_id == "RSAFS") |>
+      as_tibble() |>
+      transmute(Month, census = sales),
+    by = "Month"
+  ) |>
+  mutate(pct_diff = 100 * (log(mine) - log(census)))
+
+sa_compare |>
+  ggplot(aes(x = Month, y = pct_diff)) +
+  geom_line() +
+  labs(
+    title = "My X-13 Seasonal Adjustment Minus the Census Bureau's",
+    x = NULL, y = "Difference (%)"
+  ) +
+  theme_minimal()
+
+#My adjustment is very similar to the Census Bureau's adjustment, with the difference being mostly within 1%. Yet noticably, the difference is getting bigger over time. The two adjustment differ the most for 2020-2024 data at each beginning and end of the year.
+
+#4.4 a simple model - linear-trend + seasonal dummies
+
+#4.4a
+can_gas_fit <- can_gas |>
+  model(TSLM(log_volume ~ trend() + season()))
+
+report(can_gas_fit)
+
+can_gas_fit |>
+  tidy() |>
+  select(term, estimate, std.error, statistic, p.value) |>
+  knitr::kable(digits = 3)
+
+#The estimated average monthly growth rate of gas production is 0.4%.
+#June has the most significant seasonal effect. 
+
+#4.4b
+can_gas_fit |>
+  augment() |>
+  ggplot(aes(x = Month)) +
+  geom_line(aes(y = log_volume, color = "Actual")) +
+  geom_line(aes(y = .fitted, color = "Fitted")) +
+  labs(title = "Linear Trend + Seasonal Dummies Fit: Canadian Gas Production",
+       y = "log(Volume)", color = NULL) +
+  theme_minimal()
+
+#The fitted line does well in around the year of 1965-1979 and 1989-2019. It visibly misses the other years.
+
+#4.4c
+can_gas_fit |> gg_tsresiduals()
+
+can_gas_fit |>
+  augment() |>
+  features(.innov, ljung_box, lag = 24)
+
+#The residuals do not look like white noise - the fitted values tend to be systematically larger in the middle of the series and smaller at the beginning and end of the series. This might indicate that things happening around different times could be incorporated into our model for a better forecasting performance.
+#The Ljung-Box test also shows that the residuals are not white noise, with a p-value of 0.000 meaning that we fail to reject the null hypothesis of no autocorrelation at the 5% level.
 
 
 
