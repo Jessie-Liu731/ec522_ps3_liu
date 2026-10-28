@@ -336,7 +336,57 @@ can_gas_fit |>
   features(.innov, ljung_box, lag = 24)
 
 #The residuals do not look like white noise - the fitted values tend to be systematically larger in the middle of the series and smaller at the beginning and end of the series. This might indicate that things happening around different times could be incorporated into our model for a better forecasting performance.
-#The Ljung-Box test also shows that the residuals are not white noise, with a p-value of 0.000 meaning that we fail to reject the null hypothesis of no autocorrelation at the 5% level.
+#The Ljung-Box test, with a p-value of 0.000 that is well below 0.05, indicates that we can reject the null hypothesis that the residuals are white noise at the 5% level.
+
+
+#part 5 - a first forecast evaluation
+
+#5.1 an expanding-window TS-CV
+gas_cv_fc <- can_gas |>
+  select(Month, Volume) |>
+  stretch_tsibble(.init = 240, .step = 1) |>
+  model(snaive = SNAIVE(Volume),
+        tslm   = TSLM(log(Volume) ~ trend() + season())) |>
+  forecast(h = 1)
+
+gas_cv_fc |>
+  accuracy(can_gas, measures = list(MAE = MAE, RMSE = RMSE))
+
+#the date of the first forecast is January 1980 and the date of the last forecast is February 2005.
+#For the seasonal random walk model, the MAE is 0.57 and the RMSE is 0.7. For the linear trend + seasonal dummies model, the MAE is 4.01 and the RMSE is 4.36.
+#For forecast users with both absolute and quadratic loss functions, the seasonal random walk model forecasts more accurately. The two metrics agree with each other this time.
+
+#5.2 is the difference significant?
+errs <- gas_cv_fc |>
+  as_tibble() |>
+  left_join(as_tibble(can_gas) |> select(Month, actual = Volume),
+            by = "Month") |>
+  mutate(e = actual - .mean) |>
+  select(Month, .model, e) |>
+  pivot_wider(names_from = .model, values_from = e) |>
+  na.omit()
+
+forecast::dm.test(errs$snaive, errs$tslm, h = 1, power = 1)
+
+#The DM statistic is -31.278, of which its absolute value is much larger than the critical value of 1.96 at the 5% significance level. The p-value is 0.000, which is less than 0.05. 
+#Therefore, we can reject the null hypothesis that the two models have equal predictive accuracy at the 5% significance level. This indicates that the seasonal random walk model has significantly higher forecasting accuracy than the linear trend + seasonal dummies model for this dataset.
+
+#5.3 a rolling window
+gas_cv_fc <- can_gas |>
+  select(Month, Volume) |>
+  slide_tsibble(.size = 240, .step = 1) |>
+  model(snaive = SNAIVE(Volume),
+        tslm   = TSLM(log(Volume) ~ trend() + season())) |>
+  forecast(h = 1)
+
+gas_cv_fc |>
+  accuracy(can_gas, measures = list(MAE = MAE, RMSE = RMSE))
+
+#The accuracy of linear trend + seasonal dummies model change more when switching to a rolling window.
+#since the trend and seasonal dummy parameters are estimated from the training sample, the expanding window evaluation will include the entire history of the series. Yet as we can see in the fitted values in Part 4.4b, a constant linear trend will not be able to capture the changing growth rate of the series. Also the size of the seasonal effects seem to change over time. 
+#Therefore, the assumption of a stable data generating process seems to be violated here, so is the premise of using an expanding window to do TS-CV. In this scenario, a rolling window approach might be a better choice.
+
+
 
 
 
