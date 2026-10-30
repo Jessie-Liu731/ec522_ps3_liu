@@ -11,7 +11,7 @@ execute:
   message: false
 ---
 
-**GitHub repo:**<https://github.com/Jessie-Liu731/ec522_ps3_liu.git>
+**GitHub repo:** <https://github.com/Jessie-Liu731/ec522_ps3_liu.git>.
 
 
 ## Time and Tsibbles
@@ -36,6 +36,8 @@ retail_raw <- read_csv("data/retail_sales_raw.csv")
 
 head(retail_raw)
 ```
+
+The the observation_date column is of the date type.
 
 ### specify column types explicitly rather than trusting the guess made by R
 
@@ -126,6 +128,12 @@ can_gas_recent |>
   head()
 ```
 
+```{r}
+retail_raw |>
+  mutate(next_day = observation_date + 1) |>
+  head()
+```
+
 ### working with dates in a tsibble - changing the frequency of a series
 
 ```{r}
@@ -143,7 +151,7 @@ Why do we sum() the monthly values for gas production rather than take their mea
 Because we need the quarterly volume and that equals to the sum of the monthly volume in each quarter.
 
 Does the quarterly series still appear to be seasonal?
-Yes, the quarterly series appears to be not seasonal now.
+Yes, the quarterly series still appears to be seasonal.
 
 ### plotting with autoplot() - plot U.S. retail sales
 
@@ -164,7 +172,7 @@ retail_ts |>
   theme_minimal()
 ```
 
-The NSA series has got an annual pattern where there's a spike and drop towards the end of each year. The SA series does not have this pattern. The seasonal adjustment overall provides a line smoother than the line for the NSA series. Although the upward trend is similar, the swings become much more smaller after adjusted. The two series still follow the same path over the long run yet the ups and downs according to seasonal changes become much smaller after seasonal adjustment. This helps shed light on the most significant recessions that was hided by the seasonal patterns. 
+The NSA series has got an annual pattern where there's a spike and drop towards the end of each year. The SA series does not have this pattern. The seasonal adjustment overall provides a line smoother than the line for the NSA series. Although the upward trend is similar meaning that the two series still follow the same path over the long run, the ups and downs according to seasonal changes become much more smaller after adjusted. This helps shed light on the most significant recessions that was hided by the seasonal patterns like the large swings. 
 
 ### plotting with autoplot() - plot the Canadian gas production series can_gas
 
@@ -291,9 +299,9 @@ retail_ts |>
   theme_minimal()
 ```
 
-The NSA series has more noise than the SA series. The SA series is much smoother and more stable over time, while the NSA series has more fluctuations and spikes with the size of swings larger as well. 
+The NSA series is noisier than the SA series. The SA series is much smoother and more stable over time, while the NSA series has more fluctuations and spikes with the size of swings larger as well. 
 
-This is because the SA series has been adjusted to remove the seasonal effects in the series, while the NSA series still contains these effects. The SA series is more useful for analyzing the underlying trend and overall growth of retail sales, while the NSA series may be more useful for understanding the seasonal patterns and fluctuations in retail sales and for forecast users like owners of retail stores to prepare for inventory and staffing for specific seasons.
+This is because the SA series has been adjusted to remove the seasonal effects in the series, while the NSA series still contains these effects. The SA series presents more underlying changes in retail activity removing these predictable calendar effects.
 
 ## Seasonality
 
@@ -323,7 +331,7 @@ retail_ts |>
   theme_minimal()
 ```
 
-Compared to the NSA series, the SA series has a much more stable seasonal pattern over time. Compared to the lines tracing a similar shape year after year in the NSA plot, the lines of different years get to trace different shapes in the SA series. 
+Compared to the SA series, the NSA series has a much more visible seasonal pattern over time. Compared to the lines tracing a similar shape year after year in the NSA plot, the lines of different years get to trace different shapes in the SA series. 
 
 ### seasonal plot for can_gas
 
@@ -337,7 +345,7 @@ can_gas |>
   theme_minimal()
 ```
 
-The seasonal pattern shows that the production is highest in the winter months and lowest in the summer months. The seasonal pattern is more obvious in the earlier years of the series, with a larger difference between the winter and summer production levels. In the later years of the series, the seasonal pattern becomes less pronounced, with a smaller difference between the winter and summer production levels.
+The seasonal pattern shows that the production is highest in the winter months and lowest in the summer months. The seasonal pattern is more obvious in the earlier years of the series, with a larger difference in the logged term that could be interpreted into growth rate. In the later years of the series, the seasonal pattern becomes less pronounced but still present similar characteristics across years.
 
 The pattern matches my intuition about natural gas production in Canada as natural gas is usually used for generating electricity for both heating and cooling the buildings, with heating takes more than cooling. 
 

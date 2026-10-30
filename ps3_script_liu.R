@@ -76,6 +76,10 @@ can_gas_recent |>
          same_month_last_year = Month - 12) |>
   head()
 
+retail_raw |>
+  mutate(next_day = observation_date + 1) |>
+  head()
+
 #2.6d changing the frequency of a series
 #convert can_gas from monthly to quarterly data
 can_gas_q <- can_gas |>
@@ -87,7 +91,7 @@ head(can_gas_q)
 
 can_gas_q |> autoplot(Volume)
 ### since we need the quarterly volume and that equals to the sum of the monthly volume in each quarter.
-### the quarterly series appears to be not seasonal now
+### yes, the quarterly series still appears to be seasonal.
 
 #2.7 plotting with autoplot()
 
@@ -104,9 +108,10 @@ retail_ts |>
   ) +
   theme_minimal()
 
-# The seasonal adjustment provides a line smoother than the line for the NSA series. Although the upward trend is similar, the swings become much more smaller after adjusted.
-# The NSA series has got an annual pattern where there's a spike and drop towards the end of each year. The SA series does not have this pattern.
-# The two series still follow the same path over the long run yet the ups and downs become much smaller after seasonal adjustment.
+# The NSA series has got an annual pattern where there's a spike and drop towards the end of each year. The SA series does not have this pattern. 
+# The seasonal adjustment overall provides a line smoother than the line for the NSA series. 
+# Although the upward trend is similar meaning that the two series still follow the same path over the long run, the ups and downs according to seasonal changes become much more smaller after adjusted. 
+# This helps shed light on the most significant recessions that was hided by the seasonal patterns like the large swings. 
 
 #2.7c plot the Canadian gas production series can_gas
 can_gas |>
@@ -217,8 +222,7 @@ retail_ts |>
   theme_minimal()
 
 ###The NSA series is noisier than the SA series. The SA series is much smoother and more stable over time, while the NSA series has more fluctuations and spikes with the size of swings larger as well. 
-###This is because the SA series has been adjusted to remove the seasonal effects in the series, while the NSA series still contains these effects. The SA series is more useful for analyzing the underlying trend and growth of retail sales, while the NSA series may be more useful for understanding the seasonal patterns and fluctuations in retail sales.
-
+###This is because the SA series has been adjusted to remove the seasonal effects in the series, while the NSA series still contains these effects. The SA series presents more underlying changes in retail activity removing these predictable calendar effects.
 #part 4 - seeing, decomposing, and modeling seasonality
 
 #4.1 seasonal plots
@@ -242,7 +246,7 @@ retail_ts |>
   ) +
   theme_minimal()
 
-#Compared to the NSA series, the SA series has a much more stable seasonal pattern over time. Compared to the lines tracing a siilar shape year after year in the NSA plot, the lines of different years get to trace different shapes in the SA series. 
+#Compared to the NSA series, the SA series has a much more visible seasonal pattern over time. Compared to the lines tracing a siilar shape year after year in the NSA plot, the lines of different years get to trace different shapes in the SA series. 
 
 #4.1c seasonal plot for can_gas
 can_gas |>
